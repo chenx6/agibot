@@ -1,0 +1,16 @@
+# NAPCAT_UID=$(id -u) NAPCAT_GID=$(id -g) podman compose up -d
+services:
+  napcat:
+    image: mlikiowa/napcat-docker:v4.18.9
+    container_name: napcat
+    restart: always
+    network_mode: bridge
+    environment:
+      - NAPCAT_UID=${NAPCAT_UID}
+      - NAPCAT_GID=${NAPCAT_GID}
+    ports:
+      - 3001:3001
+      - 6099:6099
+    volumes:
+      - ./napcat/config:/app/napcat/config
+      - ./napcat/ntqq:/app/.config/QQ
