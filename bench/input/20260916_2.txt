@@ -1,0 +1,7 @@
+user_a=群友简历课不上，跑去给野hr付费
+user_b=@user_d 资讯
+user_b=咨询
+user_c=文哥要咨询？
+user_b=没 我看票圈猎头发的
+user_a=文哥想跑了
+user_b=我咨询肯定折磨麻佬去了啊
