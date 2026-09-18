@@ -1,21 +1,22 @@
-from typing import TypedDict
+from typing import Literal
 
-from agents import Agent, OpenAIResponsesModel, Runner, function_tool
-from openai import AsyncOpenAI
+from agents import Agent, Runner, function_tool
+from pydantic import BaseModel, Field
 
 from .context import ContextManager
 from .memory import MemoryManager
 from .tool.stock import stock
-from .tool.websearch import search_bing
+from .tool.websearch import search_bing, surf_web
 
 
-class Message(TypedDict):
-    type: str
-    data: str
+class Message(BaseModel):
+    type: Literal["text", "at", "image"]
+    data: str = Field(
+        description="type 为 text 时是消息, at 时是 user_id, 为 image 时是 url"
+    )
 
 
-class AgentResponse(TypedDict):
-    messages: list[Message]
+AgentResponse = list[Message]
 
 
 ctx_mgr = ContextManager("data/context")
@@ -28,7 +29,6 @@ agent = Agent(
 - 如果不清楚如何回复，可以调用 tools 来辅助。
 - 若对话中出现用户主动表达的、适合长期保留的新兴趣、擅长领域或偏好，先结合已有画像整理成一份简洁完整的画像，再调用 store_memory 整体更新。
 """,
-    model=OpenAIResponsesModel("deepseek-v4-flash", openai_client=AsyncOpenAI()),
     tools=[
         function_tool(ctx_mgr.get_context),
         function_tool(ctx_mgr.search_context),
@@ -36,10 +36,12 @@ agent = Agent(
         function_tool(mem_mgr.get_memory),
         function_tool(stock),
         function_tool(search_bing),
+        function_tool(surf_web),
     ],
+    output_type=AgentResponse,
 )
 
 
-async def chat(message: str):
-    resp = await Runner.run(agent, input=message, max_turns=10)
+async def chat(agent_input: list) -> AgentResponse:
+    resp = await Runner.run(agent, input=agent_input, max_turns=10)
     return resp.final_output

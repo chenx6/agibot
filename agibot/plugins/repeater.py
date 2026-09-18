@@ -1,3 +1,6 @@
+from random import randint
+from typing import Annotated
+
 from nonebot import on_message
 from nonebot.adapters import Message
 from nonebot.params import EventMessage
@@ -8,13 +11,13 @@ sent_msgs: list[str] = []
 
 
 @repeater_handler.handle()
-async def repeater(msg: Message = EventMessage()):
+async def repeater(msg: Annotated[Message, EventMessage()]):
     global last_msg
     curr_msg = msg.extract_plain_text().strip()
     if curr_msg in sent_msgs:
         # 复读过了，不再复读
         return
-    if curr_msg and curr_msg == last_msg:
+    if curr_msg and curr_msg == last_msg and randint(1, 3) == 1:
         # 如果已经有人在复读，则跟着复读
         await repeater_handler.send(curr_msg)
         # 更新复读消息列表

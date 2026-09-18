@@ -2,7 +2,8 @@
 使用 Playwright 调用浏览器进行 Bing 搜索并获取搜索结果
 """
 
-from playwright.async_api import Page, async_playwright
+from playwright.async_api import async_playwright
+from trafilatura import extract
 
 
 async def search_bing(
@@ -40,7 +41,7 @@ async def search_bing(
             viewport={"width": 1280, "height": 800},
             locale="zh-CN",
         )
-        page: Page = await context.new_page()
+        page = await context.new_page()
 
         # 访问 Bing
         await page.goto("https://www.bing.com", wait_until="domcontentloaded")
@@ -85,3 +86,26 @@ async def search_bing(
         await browser.close()
 
     return results
+
+
+async def surf_web(url: str):
+    """
+    访问网页并返回网页的主要内容
+
+    Args:
+        url: 需要访问的 url
+    """
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            executable_path="/usr/bin/chromium",
+            headless=True,
+            args=["--disable-blink-features=AutomationControlled"],
+        )
+        context = await browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            locale="zh-CN",
+        )
+        page = await context.new_page()
+        await page.goto(url, wait_until="domcontentloaded", timeout=60)
+        content = await page.content()
+        return extract(content)
