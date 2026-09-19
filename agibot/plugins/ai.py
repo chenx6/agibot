@@ -97,7 +97,7 @@ async def record_reply_message(event: Event, msg: Annotated[Message, EventMessag
             detail.conversation_id,
             MessageDetail(detail.conversation_id, "[bot]", "[bot]", str(resp), time()),
         )
-        if not resp_msg:
+        if not resp:
             return
         await context_matcher.send(resp_msg)
         await context_matcher.finish()
