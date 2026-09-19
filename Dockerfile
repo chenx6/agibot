@@ -1,4 +1,4 @@
-FROM archlinux:base AS builder
+FROM docker.io/library/archlinux:base AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
@@ -14,7 +14,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-FROM archlinux:base AS runtime
+FROM docker.io/library/archlinux:base AS runtime
 
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
