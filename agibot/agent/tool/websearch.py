@@ -106,6 +106,8 @@ async def surf_web(url: str):
             locale="zh-CN",
         )
         page = await context.new_page()
-        await page.goto(url, wait_until="domcontentloaded", timeout=60)
+        await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
         content = await page.content()
+        await context.close()
+        await browser.close()
         return extract(content)
