@@ -14,3 +14,12 @@ services:
     volumes:
       - ./napcat/config:/app/napcat/config
       - ./napcat/ntqq:/app/.config/QQ
+  agibot:
+    image: localhost/agibot:0.1.0
+    env_file:
+      - .env
+    ports:
+      - 8080:8080
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
