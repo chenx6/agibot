@@ -11,7 +11,7 @@ WORKDIR /app
 
 # Install locked production dependencies in a separate layer so source changes do
 # not invalidate the dependency cache.
-COPY pyproject.toml uv.lock README.md ./
+COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 FROM archlinux:base AS runtime
