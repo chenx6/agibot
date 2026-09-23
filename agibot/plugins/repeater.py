@@ -1,27 +1,48 @@
+from dataclasses import dataclass
 from random import randint
 from typing import Annotated
 
 from nonebot import on_message
-from nonebot.adapters import Message
+from nonebot.adapters import Bot, Event, Message
 from nonebot.params import EventMessage
 
+from ..util import conversation_id
+
+
+@dataclass
+class RepeatStatus:
+    text: str
+    count: int = 1
+    repeated: bool = False
+
+
 repeater_handler = on_message(block=False)
-last_msg = ""
-sent_msgs: list[str] = []
+conv_msgs: dict[str, RepeatStatus] = {}
 
 
 @repeater_handler.handle()
-async def repeater(msg: Annotated[Message, EventMessage()]):
-    global last_msg
-    curr_msg = msg.extract_plain_text().strip()
-    if curr_msg in sent_msgs:
-        # 复读过了，不再复读
+async def repeater(bot: Bot, event: Event, msg: Annotated[Message, EventMessage()]):
+    if event.get_user_id() == bot.self_id:
         return
-    if curr_msg and curr_msg == last_msg and randint(1, 3) == 1:
-        # 如果已经有人在复读，则跟着复读
-        await repeater_handler.send(curr_msg)
-        # 更新复读消息列表
-        sent_msgs.append(curr_msg)
-        if len(sent_msgs) > 5:
-            sent_msgs.pop(0)
-    last_msg = curr_msg
+    # 获取状态
+    text = msg.extract_plain_text().strip()
+    conv_id = conversation_id(event)
+    if not text:
+        return
+    # 判断是否要复读
+    state = conv_msgs.get(conv_id)
+    if not state:
+        # 没有消息，更新一下状态
+        conv_msgs[conv_id] = RepeatStatus(text)
+        return
+    if state.text == text:
+        # 产生复读了，更新一下计数
+        state.count += 1
+    else:
+        conv_msgs[conv_id] = RepeatStatus(text)
+        return
+    if not state.repeated and state.count > 2 and randint(1, 3) == 1:
+        # 触发复读条件，开始复读
+        state.repeated = True
+        await repeater_handler.send(msg)
+        await repeater_handler.finish()
