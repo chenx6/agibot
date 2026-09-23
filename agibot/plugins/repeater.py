@@ -41,7 +41,7 @@ async def repeater(bot: Bot, event: Event, msg: Annotated[Message, EventMessage(
     else:
         conv_msgs[conv_id] = RepeatStatus(text)
         return
-    if not state.repeated and state.count > 2 and randint(1, 3) == 1:
+    if not state.repeated and state.count > 2 and randint(1, 10) == 1:
         # 触发复读条件，开始复读
         state.repeated = True
         await repeater_handler.send(msg)
