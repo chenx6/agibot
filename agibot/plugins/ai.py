@@ -70,6 +70,8 @@ def msg_request(msg: Message, text_msg: str):
                             "detail": "auto",
                         }
                     )
+            case "text":
+                content.append({"type": "input_text", "text": str(seg)})
     return [{"role": "user", "content": content}]
 
 
