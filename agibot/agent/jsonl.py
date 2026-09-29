@@ -3,6 +3,18 @@ from json import dump
 from pathlib import Path
 
 
+def read_jsonl(filename: str | Path, offset: int, length: int):
+    with open(filename) as f:
+        linenum = 1
+        end = offset + length
+        contents = []
+        while line := f.readline():
+            if offset <= linenum <= end:
+                contents.append(line)
+            linenum += 1
+        return "".join(contents)
+
+
 def read_jsonl_rev(filename: str | Path, length: int):
     with open(filename) as f:
         return list(deque(f, maxlen=length))

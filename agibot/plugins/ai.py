@@ -31,7 +31,7 @@ def msg_detail(event: Event, msg: Message):
 
 
 def assemble_context(detail: MessageDetail):
-    last_ctx = ctx_mgr.get_context(detail.conversation_id, 20)
+    last_ctx = ctx_mgr.get_nearest_context(detail.conversation_id, 20)
     return "这是前面的消息记录：" + "\n".join(last_ctx) + f"这是当前的消息：{detail}"
 
 
