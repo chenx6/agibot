@@ -10,6 +10,7 @@ def get_logger(name: str | None = None):
     logger = getLogger(name)
     level = DEBUG if environ.get("TEST") else INFO
     logger.setLevel(level)
+    logger.propagate = False
     if not logger.handlers:
         fmt = Formatter(fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
         stream = StreamHandler(stderr)
