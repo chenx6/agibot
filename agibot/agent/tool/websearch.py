@@ -27,11 +27,8 @@ async def search_bing(
         browser = await p.chromium.launch(
             executable_path="/usr/bin/chromium",
             headless=headless,
-            args=[
-                "--disable-blink-features=AutomationControlled"
-            ],  # 减少被识别为爬虫的概率
+            args=["--disable-blink-features=AutomationControlled"],
         )
-
         context = await browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -42,6 +39,7 @@ async def search_bing(
             locale="zh-CN",
         )
         page = await context.new_page()
+        await page.add_init_script(path="agibot/agent/tool/playwright_init.js")
 
         # 访问 Bing
         await page.goto("https://www.bing.com", wait_until="domcontentloaded")
@@ -88,17 +86,18 @@ async def search_bing(
     return results
 
 
-async def surf_web(url: str):
+async def surf_web(url: str, headless: bool = True):
     """
     访问网页并返回网页的主要内容
 
     Args:
         url: 需要访问的 url
+        headless: 是否使用无头模式（True 不显示浏览器界面）
     """
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             executable_path="/usr/bin/chromium",
-            headless=True,
+            headless=headless,
             args=["--disable-blink-features=AutomationControlled"],
         )
         context = await browser.new_context(
@@ -106,6 +105,7 @@ async def surf_web(url: str):
             locale="zh-CN",
         )
         page = await context.new_page()
+        await page.add_init_script(path="agibot/agent/tool/playwright_init.js")
         await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
         content = await page.content()
         await context.close()
