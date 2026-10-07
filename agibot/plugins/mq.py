@@ -20,6 +20,7 @@ if environ.get("REDIS_HOST"):
         port=int(environ["REDIS_PORT"]),
         password=environ.get("REDIS_PASSWORD"),
     )
+    logger.info("Redis init done")
     LOADED = True
 
 
