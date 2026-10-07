@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "anyio>=4.15.1",
     "httpx>=0.28.1",
     "nonebot-adapter-console>=0.10.0",
     "nonebot-adapter-onebot>=2.4.6",
@@ -12,6 +13,7 @@ dependencies = [
     "openai>=3.14.1",
     "openai-agents>=0.22.2",
     "playwright>=1.63.0",
+    "redis>=8.1.0",
     "trafilatura>=2.2.0",
 ]
 
