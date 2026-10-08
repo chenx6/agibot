@@ -7,6 +7,7 @@ from anyio import open_file
 from nonebot import get_bots, get_driver
 from nonebot.adapters.onebot.v11 import MessageSegment
 from redis.asyncio import Redis
+from redis.exceptions import TimeoutError
 
 from ..logger import get_logger
 
@@ -22,6 +23,9 @@ if environ.get("REDIS_HOST"):
         host=environ["REDIS_HOST"],
         port=int(environ["REDIS_PORT"]),
         password=environ.get("REDIS_PASSWORD"),
+        socket_timeout=30,
+        health_check_interval=30,
+        socket_keepalive=True,
     )
     logger.info("Redis init done")
     LOADED = True
@@ -40,7 +44,10 @@ async def get_type_dispatch() -> dict[str, list[int]]:
 
 
 async def get_message() -> QueueMessage | None:
-    result = await _client.brpop(MQ_KEY)
+    try:
+        result = await _client.brpop(MQ_KEY, 5)
+    except TimeoutError:
+        return
     if not result:
         return
     _, data = result
