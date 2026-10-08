@@ -1,7 +1,7 @@
 from asyncio import CancelledError, create_task, sleep
 from json import JSONDecodeError, loads
 from os import environ
-from typing import NotRequired, TypedDict
+from typing import TYPE_CHECKING, NotRequired, TypedDict
 
 from anyio import open_file
 from nonebot import get_bots, get_driver
@@ -9,6 +9,9 @@ from nonebot.adapters.onebot.v11 import MessageSegment
 from redis.asyncio import Redis
 
 from ..logger import get_logger
+
+if TYPE_CHECKING:
+    from asyncio import Task
 
 logger = get_logger()
 LOADED = False
@@ -71,16 +74,30 @@ async def loop():
         if not msgseg:
             continue
         logger.info("Get message from redis %s", msgseg)
+        groups = dsp.get(msg["type"], [])
         for bot in bots:
-            for group in dsp.get(msg["type"], []):
-                await bot.call_api("send_group_msg", group_id=group, message=msgseg)
-            logger.info("Send message to %s done", dsp.get(msg["type"], []))
+            try:
+                for group in groups:
+                    await bot.call_api("send_group_msg", group_id=group, message=msgseg)
+                logger.info("Send message to %s done", groups)
+            except Exception:
+                logger.exception("Send message to %s failed", groups)
+
+
+def handle_task_result(task: "Task"):
+    try:
+        task.result()
+    except CancelledError:
+        pass
+    except Exception:
+        logger.exception("Task failed:")
 
 
 @get_driver().on_startup
 async def start():
     global _background_task
     _background_task = create_task(loop())
+    _background_task.add_done_callback(handle_task_result)
 
 
 @get_driver().on_shutdown
