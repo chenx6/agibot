@@ -7,3 +7,4 @@ class MessageDetail(NamedTuple):
     nickname: str | None
     message: str
     timestamp: float
+    raw: str

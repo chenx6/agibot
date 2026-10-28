@@ -27,7 +27,9 @@ def msg_detail(event: Event, msg: Message):
     conv_id = conversation_id(event)
     nickname = _nickname(event)
     timestamp = time()
-    return MessageDetail(conv_id, user_id, nickname, text, timestamp)
+    return MessageDetail(
+        conv_id, user_id, nickname, text, timestamp, msg.to_rich_text(0)
+    )
 
 
 def assemble_context(detail: MessageDetail):
@@ -72,6 +74,13 @@ def msg_request(msg: Message, text_msg: str):
                     )
             case "text":
                 content.append({"type": "input_text", "text": str(seg)})
+            case _:
+                content.append(
+                    {
+                        "type": "input_text",
+                        "text": seg.to_rich_text(0),
+                    }
+                )
     return [{"role": "user", "content": content}]
 
 
@@ -91,7 +100,9 @@ async def record_reply_message(event: Event, msg: Annotated[Message, EventMessag
         resp_msg = response_msg(resp)
         await ctx_mgr.add_context(
             detail.conversation_id,
-            MessageDetail(detail.conversation_id, "[bot]", "[bot]", str(resp), time()),
+            MessageDetail(
+                detail.conversation_id, "[bot]", "[bot]", str(resp), time(), ""
+            ),
         )
         if not resp:
             return
@@ -118,7 +129,7 @@ async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
         return
     await ctx_mgr.add_context(
         detail.conversation_id,
-        MessageDetail(detail.conversation_id, "[bot]", "[bot]", str(resp), time()),
+        MessageDetail(detail.conversation_id, "[bot]", "[bot]", str(resp), time(), ""),
     )
     await tome_matcher.send(resp_msg)
     await tome_matcher.finish()
