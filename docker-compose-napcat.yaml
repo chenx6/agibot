@@ -5,10 +5,9 @@ services:
     container_name: napcat
     hostname: linux-machine
     restart: always
-    network_mode: bridge
     environment:
-      - NAPCAT_UID=${NAPCAT_UID}
-      - NAPCAT_GID=${NAPCAT_GID}
+      - NAPCAT_UID=${NAPCAT_UID:-1000}
+      - NAPCAT_GID=${NAPCAT_GID:-1000}
     ports:
       - 3001:3001
       - 6099:6099
