@@ -3,6 +3,7 @@ include:
 services:
   agibot:
     image: localhost/agibot:0.1.0
+    init: true
     env_file:
       - .env
     ports:
