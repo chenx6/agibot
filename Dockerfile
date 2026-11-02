@@ -3,7 +3,7 @@ FROM docker.io/library/archlinux:base AS builder
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-RUN sed -i '1iServer = https://mirrors.ustc.edu.cn/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist \
+RUN sed -i '1iServer = https://mirror.nju.edu.cn/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist \
     && pacman -Syu --noconfirm --needed python uv \
     && pacman -Scc --noconfirm
 
@@ -20,8 +20,8 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-RUN sed -i '1iServer = https://mirrors.ustc.edu.cn/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist \
-    && pacman -Syu --noconfirm --needed \
+RUN sed -i '1iServer = https://mirror.nju.edu.cn/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist \
+    && stdbuf -oL -eL pacman -Syu --noconfirm --needed \
         chromium \
         noto-fonts-cjk \
         python \
