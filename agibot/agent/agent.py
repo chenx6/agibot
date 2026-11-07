@@ -1,14 +1,14 @@
 from pathlib import Path
 from typing import Literal
 
-from agents import Agent, ModelSettings, RunErrorHandlerInput, Runner, function_tool
+from agents import Agent, RunErrorHandlerInput, Runner, function_tool
 from agents.exceptions import ModelBehaviorError
-from openai.types.shared import Reasoning
 from pydantic import BaseModel, Field
 
 from ..logger import get_logger
 from .context import ContextManager
 from .memory import MemoryManager
+from .replier import generate_qq_reply
 from .tool.stock import stock
 from .tool.websearch import search_bing, surf_web
 
@@ -44,11 +44,9 @@ agent = Agent(
         function_tool(stock),
         function_tool(search_bing),
         function_tool(surf_web),
+        generate_qq_reply,
     ],
     output_type=AgentResponse,
-    model_settings=ModelSettings(
-        reasoning=Reasoning(effort="low"),
-    ),
 )
 repair_agent = agent.clone(
     name="OutputRepair",
