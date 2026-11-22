@@ -21,6 +21,27 @@ def _nickname(event: Event):
         return event.sender.nickname
 
 
+def _reply_sender(event: Event) -> str | None:
+    if not isinstance(event, MessageEvent) or not event.reply:
+        return
+    sender = event.reply.sender
+    user_id = str(sender.user_id or "")
+    nickname = (sender.nickname or "").strip()
+    if nickname and user_id and nickname != user_id:
+        return f"{nickname}({user_id})"
+    return nickname or user_id or None
+
+
+def _reply_to(event: Event) -> str | None:
+    if not isinstance(event, MessageEvent) or not event.reply:
+        return
+    who = _reply_sender(event)
+    text = " ".join(message_to_text(event.reply.message).split())
+    if who and text:
+        return f"{who}: {text}"
+    return text or who or None
+
+
 def message_to_text(msg: Message) -> str:
     """
     将 OneBot Message 转换为可读文本
@@ -59,7 +80,13 @@ def msg_detail(msg: Message, event: Event):
     nickname = _nickname(event)
     timestamp = time()
     return MessageDetail(
-        conv_id, user_id, nickname, text, timestamp, msg.to_rich_text(0)
+        conv_id,
+        user_id,
+        nickname,
+        text,
+        timestamp,
+        msg.to_rich_text(0),
+        _reply_to(event),
     )
 
 
@@ -130,6 +157,12 @@ async def record_reply_message(event: Event, msg: Annotated[Message, EventMessag
             detail,
         )
         req = msg_request(msg, context)
+        if isinstance(event, MessageEvent) and event.reply:
+            if reply_sender := _reply_sender(event):
+                reply_prefix = f"下面是引用的回复（{reply_sender}）："
+            else:
+                reply_prefix = "下面是引用的回复："
+            req += msg_request(event.reply.message, reply_prefix)
         if not req:
             return
         resp = await chat(req)
@@ -166,7 +199,12 @@ async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
     )
     req = msg_request(msg, context)
     if isinstance(event, MessageEvent) and event.reply:
-        req += msg_request(event.reply.message, "下面是引用的回复")
+        reply_sender = _reply_sender(event)
+        if reply_sender := _reply_sender(event):
+            reply_prefix = f"下面是引用的回复（{reply_sender}）："
+        else:
+            reply_prefix = "下面是引用的回复："
+        req += msg_request(event.reply.message, reply_prefix)
     if not req:
         return
     resp = await chat(req)

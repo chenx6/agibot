@@ -31,15 +31,15 @@ def jsonl_list_message(json_strs: list[str]) -> list[str]:
         except ValueError as e:
             logger.warning("Parse json failed, %s", e)
             continue
-        res.append(
-            " ".join(
-                [
-                    "[" + readable_time(raw_msg["timestamp"]) + "]",
-                    raw_msg.get("nickname") or "" + "(" + raw_msg["user_id"] + "):",
-                    raw_msg["message"],
-                ]
-            )
-        )
+        time = "[" + readable_time(raw_msg["timestamp"]) + "]"
+        nickname = raw_msg.get("nickname") or ""
+        user_id = raw_msg["user_id"]
+        speaker = f"{nickname}({user_id}):"
+        message = raw_msg["message"]
+        reply_to = raw_msg.get("reply_to")
+        if reply_to:
+            message = f"{message}（回复 {reply_to}）"
+        res.append(f"{time} {speaker} {message}")
     return res
 
 
