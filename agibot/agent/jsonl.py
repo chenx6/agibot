@@ -1,32 +1,43 @@
 from collections import deque
-from json import dump
+from json import dumps
 from pathlib import Path
 
+from anyio import Path as AsyncPath
 
-def read_jsonl(filename: str | Path, offset: int, length: int) -> list[str]:
-    filename = Path(filename)
-    if not filename.exists():
+
+async def read_jsonl(filename: str | Path, offset: int, length: int) -> list[str]:
+    if length <= 0:
         return []
-    with open(filename) as f:
+    path = AsyncPath(filename)
+    if not await path.exists():
+        return []
+    start = max(offset, 1)
+    end = start + length
+    contents: list[str] = []
+    async with await path.open(encoding="utf-8") as f:
         linenum = 1
-        end = offset + length
-        contents = []
-        while line := f.readline():
-            if offset <= linenum < end:
+        async for line in f:
+            if linenum >= end:
+                break
+            if linenum >= start:
                 contents.append(line)
             linenum += 1
-        return contents
+    return contents
 
 
-def read_jsonl_rev(filename: str | Path, length: int):
-    filename = Path(filename)
-    if not filename.exists():
+async def read_jsonl_rev(filename: str | Path, length: int) -> list[str]:
+    if length <= 0:
         return []
-    with open(filename) as f:
-        return list(deque(f, maxlen=length))
+    path = AsyncPath(filename)
+    if not await path.exists():
+        return []
+    lines: deque[str] = deque(maxlen=length)
+    async with await path.open(encoding="utf-8") as f:
+        async for line in f:
+            lines.append(line)
+    return list(lines)
 
 
-def append_jsonl(filename: str | Path, content: object):
-    with open(filename, "a+") as fw:
-        dump(content, fw, ensure_ascii=False)
-        fw.write("\n")
+async def append_jsonl(filename: str | Path, content: object) -> None:
+    async with await AsyncPath(filename).open("a+", encoding="utf-8") as fw:
+        await fw.write(dumps(content, ensure_ascii=False) + "\n")

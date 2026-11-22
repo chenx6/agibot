@@ -1,5 +1,7 @@
-from json import dump, load
+from json import dumps, load
 from pathlib import Path
+
+from anyio import open_file
 
 from ..logger import get_logger
 
@@ -21,11 +23,11 @@ class MemoryManager:
         logger.debug("Get memory: %s", user_id)
         return self.memory.get(user_id)
 
-    def store_memory(self, user_id: str, memory: str):
+    async def store_memory(self, user_id: str, memory: str):
         """
         存储记忆
         """
         logger.debug("Store memory: %s %s", user_id, memory)
         self.memory[user_id] = memory
-        with open(self.mem_file, "w") as f:
-            dump(self.memory, f, ensure_ascii=False)
+        async with await open_file(self.mem_file, "w", encoding="utf-8") as f:
+            await f.write(dumps(self.memory, ensure_ascii=False))

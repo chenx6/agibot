@@ -1,7 +1,7 @@
-from asyncio.locks import Lock
+from asyncio import Lock, create_subprocess_exec, wait_for
+from asyncio.subprocess import PIPE
 from json import loads
 from pathlib import Path
-from subprocess import run
 
 from ..logger import get_logger
 from ..util import readable_time
@@ -9,6 +9,7 @@ from .jsonl import append_jsonl, read_jsonl, read_jsonl_rev
 from .model import MessageDetail
 
 logger = get_logger()
+SEARCH_TIMEOUT = 10.0
 
 
 def sanitize_path(folder: Path, conv_id: str) -> Path:
@@ -54,7 +55,7 @@ class ContextManager:
         if not self._context_folder.exists():
             self._context_folder.mkdir()
 
-    def get_context(self, conversation_id: str, offset: int, length: int = 10):
+    async def get_context(self, conversation_id: str, offset: int, length: int = 10):
         """
         获取当前聊天记录的上下文
 
@@ -65,18 +66,20 @@ class ContextManager:
         """
         logger.debug("Get context: %s %s", conversation_id, length)
         return jsonl_list_message(
-            read_jsonl(
+            await read_jsonl(
                 sanitize_path(self._context_folder, conversation_id), offset, length
             )
         )
 
-    def get_nearest_context(self, conversation_id: str, length: int):
+    async def get_nearest_context(self, conversation_id: str, length: int):
         logger.debug("Get nearest context: %s %s", conversation_id, length)
         return jsonl_list_message(
-            read_jsonl_rev(sanitize_path(self._context_folder, conversation_id), length)
+            await read_jsonl_rev(
+                sanitize_path(self._context_folder, conversation_id), length
+            )
         )
 
-    def search_context(self, conversation_id: str, pattern: str):
+    async def search_context(self, conversation_id: str, pattern: str):
         """
         在聊天记录中搜索关键字
 
@@ -85,12 +88,23 @@ class ContextManager:
             pattern: 搜索 pattern, 格式为 ripgrep 支持的正则
         """
         logger.debug("Search context: %s %s", conversation_id, pattern)
-        p = run(
-            ["rg", pattern, sanitize_path(self._context_folder, conversation_id)],
-            capture_output=True,
-            check=False,
+        path = sanitize_path(self._context_folder, conversation_id)
+        proc = await create_subprocess_exec(
+            "rg",
+            pattern,
+            str(path),
+            stdout=PIPE,
+            stderr=PIPE,
         )
-        return jsonl_list_message(p.stdout.decode().split("\n"))
+        try:
+            stdout, _ = await wait_for(proc.communicate(), timeout=SEARCH_TIMEOUT)
+        except TimeoutError:
+            if proc.returncode is None:
+                proc.kill()
+            await proc.wait()
+            logger.warning("Search context timeout: %s %s", conversation_id, pattern)
+            return []
+        return jsonl_list_message(stdout.decode(errors="replace").split("\n"))
 
     async def add_context(self, conversation_id: str, message: MessageDetail):
         """
@@ -98,6 +112,6 @@ class ContextManager:
         """
         logger.debug("Add context: %s %s", conversation_id, message)
         async with self.lock:
-            append_jsonl(
+            await append_jsonl(
                 sanitize_path(self._context_folder, conversation_id), message._asdict()
             )
