@@ -3,7 +3,7 @@ from json import dump
 from pathlib import Path
 
 
-def read_jsonl(filename: str | Path, offset: int, length: int):
+def read_jsonl(filename: str | Path, offset: int, length: int) -> list[str]:
     with open(filename) as f:
         linenum = 1
         end = offset + length
@@ -12,7 +12,7 @@ def read_jsonl(filename: str | Path, offset: int, length: int):
             if offset <= linenum <= end:
                 contents.append(line)
             linenum += 1
-        return "".join(contents)
+        return contents
 
 
 def read_jsonl_rev(filename: str | Path, length: int):
