@@ -16,6 +16,9 @@ def read_jsonl(filename: str | Path, offset: int, length: int) -> list[str]:
 
 
 def read_jsonl_rev(filename: str | Path, length: int):
+    filename = Path(filename)
+    if not filename.exists():
+        return []
     with open(filename) as f:
         return list(deque(f, maxlen=length))
 

@@ -10,7 +10,7 @@ from nonebot.rule import to_me
 
 from ..agent.agent import AgentResponse, chat, ctx_mgr
 from ..agent.model import MessageDetail
-from ..util import conversation_id
+from ..util import conversation_id, readable_time
 
 context_matcher = on_message(priority=10)
 tome_matcher = on_message(rule=to_me(), priority=1, block=True)
@@ -21,8 +21,39 @@ def _nickname(event: Event):
         return event.sender.nickname
 
 
+def message_to_text(msg: Message) -> str:
+    """
+    将 OneBot Message 转换为可读文本
+    """
+    parts: list[str] = []
+    for seg in msg:
+        match seg.type:
+            case "text":
+                parts.append(str(seg.data.get("text", "")))
+            case "at":
+                qq = seg.data.get("qq") or seg.data.get("user_id") or ""
+                parts.append(f"[@{qq}]" if qq else "[@]")
+            case "image":
+                parts.append("[图片]")
+            case "video":
+                parts.append("[视频]")
+            case "record":
+                parts.append("[语音]")
+            case "forward":
+                parts.append("[合并转发]")
+            case "face":
+                parts.append("[表情]")
+            case "json":
+                parts.append("[卡片消息]")
+            case "reply":
+                continue
+            case _:
+                parts.append(f"[{seg.type}]")
+    return "".join(parts).strip()
+
+
 def msg_detail(msg: Message, event: Event):
-    text = msg.extract_plain_text().strip()
+    text = message_to_text(msg)
     user_id = event.get_user_id()
     conv_id = conversation_id(event)
     nickname = _nickname(event)
@@ -34,7 +65,12 @@ def msg_detail(msg: Message, event: Event):
 
 def assemble_context(detail: MessageDetail):
     last_ctx = ctx_mgr.get_nearest_context(detail.conversation_id, 20)
-    return "这是前面的消息记录：" + "\n".join(last_ctx)
+    return (
+        f"当前会话：{detail.conversation_id}\n"
+        f"这是前面的消息记录：\n" + "\n".join(last_ctx) + "\n"
+        f"这是当前的消息：[{readable_time(detail.timestamp)}] "
+        f"{detail.nickname or detail.user_id}({detail.user_id}): "
+    )
 
 
 def response_msg(resp: AgentResponse):
@@ -87,32 +123,37 @@ def msg_request(msg: Message, context: str):
 @context_matcher.handle()
 async def record_reply_message(event: Event, msg: Annotated[Message, EventMessage()]):
     detail = msg_detail(msg, event)
-    context = assemble_context(detail)
-    await ctx_mgr.add_context(
-        detail.conversation_id,
-        detail,
-    )
     if randint(1, 1000) == 1:
+        context = assemble_context(detail)  # 延迟组装 context, 降低组装消耗
+        await ctx_mgr.add_context(
+            detail.conversation_id,
+            detail,
+        )
         req = msg_request(msg, context)
         if not req:
             return
         resp = await chat(req)
         resp_msg = response_msg(resp)
+        if not resp_msg:
+            return
         await ctx_mgr.add_context(
             detail.conversation_id,
             MessageDetail(
                 detail.conversation_id,
                 "0",
                 "[bot]",
-                resp_msg.extract_plain_text().strip(),
+                message_to_text(resp_msg),
                 time(),
                 resp_msg.to_rich_text(0),
             ),
         )
-        if not resp:
-            return
         await context_matcher.send(resp_msg)
         await context_matcher.finish()
+    else:
+        await ctx_mgr.add_context(
+            detail.conversation_id,
+            detail,
+        )
 
 
 @tome_matcher.handle()
@@ -138,7 +179,7 @@ async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
             detail.conversation_id,
             "0",
             "[bot]",
-            resp_msg.extract_plain_text().strip(),
+            message_to_text(resp_msg),
             time(),
             resp_msg.to_rich_text(0),
         ),

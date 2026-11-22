@@ -1,16 +1,14 @@
 from asyncio.locks import Lock
-from datetime import datetime
 from json import loads
 from pathlib import Path
 from subprocess import run
-from zoneinfo import ZoneInfo
 
 from ..logger import get_logger
+from ..util import readable_time
 from .jsonl import append_jsonl, read_jsonl, read_jsonl_rev
 from .model import MessageDetail
 
 logger = get_logger()
-tz = ZoneInfo("Asia/Shanghai")
 
 
 def sanitize_path(folder: Path, conv_id: str):
@@ -22,19 +20,22 @@ def sanitize_path(folder: Path, conv_id: str):
 
 def jsonl_list_message(json_strs: list[str]) -> list[str]:
     """
-    将 JSONL 变成如下格式：[2026-11-08 01:17:00] 昵称(user_id): 消息正文
+    将 JSONL 变成如下格式：[2026-11-08 01:17:00] 昵称(user_id) : 消息正文
     """
     res = []
     for js in json_strs:
-        raw_msg = loads(js)
+        if not js.strip():
+            continue
+        try:
+            raw_msg = loads(js)
+        except ValueError as e:
+            logger.warning("Parse json failed, %s", e)
+            continue
         res.append(
             " ".join(
                 [
-                    datetime.fromtimestamp(raw_msg["timestamp"], tz=tz).strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    ),
-                    raw_msg["nickname"],
-                    "(" + raw_msg["user_id"] + ")",
+                    "[" + readable_time(raw_msg["timestamp"]) + "]",
+                    raw_msg.get("nickname") or "" + "(" + raw_msg["user_id"] + "):",
                     raw_msg["message"],
                 ]
             )
