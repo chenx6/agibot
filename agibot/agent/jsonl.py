@@ -4,12 +4,15 @@ from pathlib import Path
 
 
 def read_jsonl(filename: str | Path, offset: int, length: int) -> list[str]:
+    filename = Path(filename)
+    if not filename.exists():
+        return []
     with open(filename) as f:
         linenum = 1
         end = offset + length
         contents = []
         while line := f.readline():
-            if offset <= linenum <= end:
+            if offset <= linenum < end:
                 contents.append(line)
             linenum += 1
         return contents
