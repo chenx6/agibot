@@ -11,9 +11,13 @@ from .model import MessageDetail
 logger = get_logger()
 
 
-def sanitize_path(folder: Path, conv_id: str):
-    res = folder / conv_id
-    if res.absolute().is_relative_to(folder.absolute()):
+def sanitize_path(folder: Path, conv_id: str) -> Path:
+    if not conv_id.strip() or "/" in conv_id:
+        raise ValueError("conversation id is wrong")
+
+    base = folder.resolve()
+    res = (base / conv_id).resolve()
+    if res != base and res.is_relative_to(base):
         return res
     raise ValueError("conversation id is wrong")
 
