@@ -1,8 +1,10 @@
 from asyncio.locks import Lock
+from json import loads
 from pathlib import Path
 from subprocess import run
 
 from ..logger import get_logger
+from ..util import readable_time
 from .jsonl import append_jsonl, read_jsonl, read_jsonl_rev
 from .model import MessageDetail
 
@@ -14,6 +16,31 @@ def sanitize_path(folder: Path, conv_id: str):
     if res.absolute().is_relative_to(folder.absolute()):
         return res
     raise ValueError("conversation id is wrong")
+
+
+def jsonl_list_message(json_strs: list[str]) -> list[str]:
+    """
+    将 JSONL 变成如下格式：[2026-11-08 01:17:00] 昵称(user_id) : 消息正文
+    """
+    res = []
+    for js in json_strs:
+        if not js.strip():
+            continue
+        try:
+            raw_msg = loads(js)
+        except ValueError as e:
+            logger.warning("Parse json failed, %s", e)
+            continue
+        time = "[" + readable_time(raw_msg["timestamp"]) + "]"
+        nickname = raw_msg.get("nickname") or ""
+        user_id = raw_msg["user_id"]
+        speaker = f"{nickname}({user_id}):"
+        message = raw_msg["message"]
+        reply_to = raw_msg.get("reply_to")
+        if reply_to:
+            message = f"{message}（回复 {reply_to}）"
+        res.append(f"{time} {speaker} {message}")
+    return res
 
 
 class ContextManager:
@@ -33,14 +60,16 @@ class ContextManager:
             length: 文件行数，默认为 10 行
         """
         logger.debug("Get context: %s %s", conversation_id, length)
-        return read_jsonl(
-            sanitize_path(self._context_folder, conversation_id), offset, length
+        return jsonl_list_message(
+            read_jsonl(
+                sanitize_path(self._context_folder, conversation_id), offset, length
+            )
         )
 
     def get_nearest_context(self, conversation_id: str, length: int):
         logger.debug("Get nearest context: %s %s", conversation_id, length)
-        return read_jsonl_rev(
-            sanitize_path(self._context_folder, conversation_id), length
+        return jsonl_list_message(
+            read_jsonl_rev(sanitize_path(self._context_folder, conversation_id), length)
         )
 
     def search_context(self, conversation_id: str, pattern: str):
@@ -57,7 +86,7 @@ class ContextManager:
             capture_output=True,
             check=False,
         )
-        return p.stdout.decode()
+        return jsonl_list_message(p.stdout.decode().split("\n"))
 
     async def add_context(self, conversation_id: str, message: MessageDetail):
         """

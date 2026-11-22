@@ -8,3 +8,4 @@ class MessageDetail(NamedTuple):
     message: str
     timestamp: float
     raw: str
+    reply_to: str | None = None
