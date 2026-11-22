@@ -21,11 +21,20 @@ def _nickname(event: Event):
         return event.sender.nickname
 
 
-def msg_detail(event: Event, msg: Message):
+def msg_detail(
+    msg: Message, event: Event | None, bot_event: dict[str, str] | None = None
+):
     text = msg.extract_plain_text().strip()
-    user_id = event.get_user_id()
-    conv_id = conversation_id(event)
-    nickname = _nickname(event)
+    if event:
+        user_id = event.get_user_id()
+        conv_id = conversation_id(event)
+        nickname = _nickname(event)
+    elif bot_event:
+        user_id = bot_event["user_id"]
+        conv_id = bot_event["conv_id"]
+        nickname = bot_event["nickname"]
+    else:
+        raise ValueError("all(event, bot_event) is None")
     timestamp = time()
     return MessageDetail(
         conv_id, user_id, nickname, text, timestamp, msg.to_rich_text(0)
@@ -34,7 +43,7 @@ def msg_detail(event: Event, msg: Message):
 
 def assemble_context(detail: MessageDetail):
     last_ctx = ctx_mgr.get_nearest_context(detail.conversation_id, 20)
-    return "这是前面的消息记录：" + "\n".join(last_ctx) + f"这是当前的消息：{detail}"
+    return "这是前面的消息记录：" + "\n".join(last_ctx)
 
 
 def response_msg(resp: AgentResponse):
@@ -50,8 +59,8 @@ def response_msg(resp: AgentResponse):
     return Message(msg_list)
 
 
-def msg_request(msg: Message, text_msg: str):
-    content: list[dict] = [{"type": "input_text", "text": text_msg}]
+def msg_request(msg: Message, context: str):
+    content: list[dict] = [{"type": "input_text", "text": context}]
     for seg in msg:
         match seg.type:
             case "image":
@@ -86,13 +95,13 @@ def msg_request(msg: Message, text_msg: str):
 
 @context_matcher.handle()
 async def record_reply_message(event: Event, msg: Annotated[Message, EventMessage()]):
-    detail = msg_detail(event, msg)
+    detail = msg_detail(msg, event)
+    context = assemble_context(detail)
     await ctx_mgr.add_context(
         detail.conversation_id,
         detail,
     )
     if randint(1, 1000) == 1:
-        context = assemble_context(detail)
         req = msg_request(msg, context)
         if not req:
             return
@@ -100,8 +109,14 @@ async def record_reply_message(event: Event, msg: Annotated[Message, EventMessag
         resp_msg = response_msg(resp)
         await ctx_mgr.add_context(
             detail.conversation_id,
-            MessageDetail(
-                detail.conversation_id, "[bot]", "[bot]", str(resp), time(), ""
+            msg_detail(
+                resp_msg,
+                None,
+                {
+                    "user_id": "1",
+                    "conv_id": detail.conversation_id,
+                    "nickname": "[bot]",
+                },
             ),
         )
         if not resp:
@@ -112,12 +127,12 @@ async def record_reply_message(event: Event, msg: Annotated[Message, EventMessag
 
 @tome_matcher.handle()
 async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
-    detail = msg_detail(event, msg)
+    detail = msg_detail(msg, event)
+    context = assemble_context(detail)
     await ctx_mgr.add_context(
         detail.conversation_id,
         detail,
     )
-    context = assemble_context(detail)
     req = msg_request(msg, context)
     if isinstance(event, MessageEvent) and event.reply:
         req += msg_request(event.reply.message, "下面是引用的回复")
@@ -129,7 +144,15 @@ async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
         return
     await ctx_mgr.add_context(
         detail.conversation_id,
-        MessageDetail(detail.conversation_id, "[bot]", "[bot]", str(resp), time(), ""),
+        msg_detail(
+            resp_msg,
+            None,
+            {
+                "user_id": "1",
+                "conv_id": detail.conversation_id,
+                "nickname": "[bot]",
+            },
+        ),
     )
     await tome_matcher.send(resp_msg)
     await tome_matcher.finish()
