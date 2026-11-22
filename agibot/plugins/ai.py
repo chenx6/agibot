@@ -21,20 +21,11 @@ def _nickname(event: Event):
         return event.sender.nickname
 
 
-def msg_detail(
-    msg: Message, event: Event | None, bot_event: dict[str, str] | None = None
-):
+def msg_detail(msg: Message, event: Event):
     text = msg.extract_plain_text().strip()
-    if event:
-        user_id = event.get_user_id()
-        conv_id = conversation_id(event)
-        nickname = _nickname(event)
-    elif bot_event:
-        user_id = bot_event["user_id"]
-        conv_id = bot_event["conv_id"]
-        nickname = bot_event["nickname"]
-    else:
-        raise ValueError("all(event, bot_event) is None")
+    user_id = event.get_user_id()
+    conv_id = conversation_id(event)
+    nickname = _nickname(event)
     timestamp = time()
     return MessageDetail(
         conv_id, user_id, nickname, text, timestamp, msg.to_rich_text(0)
@@ -109,14 +100,13 @@ async def record_reply_message(event: Event, msg: Annotated[Message, EventMessag
         resp_msg = response_msg(resp)
         await ctx_mgr.add_context(
             detail.conversation_id,
-            msg_detail(
-                resp_msg,
-                None,
-                {
-                    "user_id": "1",
-                    "conv_id": detail.conversation_id,
-                    "nickname": "[bot]",
-                },
+            MessageDetail(
+                detail.conversation_id,
+                "0",
+                "[bot]",
+                resp_msg.extract_plain_text().strip(),
+                time(),
+                resp_msg.to_rich_text(0),
             ),
         )
         if not resp:
@@ -144,14 +134,13 @@ async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
         return
     await ctx_mgr.add_context(
         detail.conversation_id,
-        msg_detail(
-            resp_msg,
-            None,
-            {
-                "user_id": "1",
-                "conv_id": detail.conversation_id,
-                "nickname": "[bot]",
-            },
+        MessageDetail(
+            detail.conversation_id,
+            "0",
+            "[bot]",
+            resp_msg.extract_plain_text().strip(),
+            time(),
+            resp_msg.to_rich_text(0),
         ),
     )
     await tome_matcher.send(resp_msg)
