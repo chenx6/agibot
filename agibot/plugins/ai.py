@@ -14,7 +14,14 @@ from ..util import conversation_id, readable_time
 
 context_matcher = on_message(priority=10)
 tome_matcher = on_message(rule=to_me(), priority=1, block=True)
-
+_SEG_PLACEHOLDERS = {
+    "image": "[图片]",
+    "video": "[视频]",
+    "record": "[语音]",
+    "forward": "[合并转发]",
+    "face": "[表情]",
+    "json": "[卡片消息]",
+}
 
 def _nickname(event: Event):
     if isinstance(event, MessageEvent):
@@ -42,35 +49,30 @@ def _reply_to(event: Event) -> str | None:
     return text or who or None
 
 
+def _segment_to_text(seg: MessageSegment) -> str:
+    if seg.type == "text":
+        return str(seg.data.get("text", ""))
+    if seg.type == "at":
+        qq = seg.data.get("qq") or seg.data.get("user_id") or ""
+        return f"[@{qq}]" if qq else "[@]"
+    if seg.type == "reply":
+        return ""
+    return _SEG_PLACEHOLDERS.get(seg.type, f"[{seg.type}]")
+
+
+def _image_url(seg: MessageSegment) -> str | None:
+    if url := seg.data.get("url"):
+        return url
+    if (file := seg.data.get("file")) and file.startswith(("http://", "https://")):
+        return file
+    return None
+
+
 def message_to_text(msg: Message) -> str:
     """
     将 OneBot Message 转换为可读文本
     """
-    parts: list[str] = []
-    for seg in msg:
-        match seg.type:
-            case "text":
-                parts.append(str(seg.data.get("text", "")))
-            case "at":
-                qq = seg.data.get("qq") or seg.data.get("user_id") or ""
-                parts.append(f"[@{qq}]" if qq else "[@]")
-            case "image":
-                parts.append("[图片]")
-            case "video":
-                parts.append("[视频]")
-            case "record":
-                parts.append("[语音]")
-            case "forward":
-                parts.append("[合并转发]")
-            case "face":
-                parts.append("[表情]")
-            case "json":
-                parts.append("[卡片消息]")
-            case "reply":
-                continue
-            case _:
-                parts.append(f"[{seg.type}]")
-    return "".join(parts).strip()
+    return "".join(_segment_to_text(seg) for seg in msg).strip()
 
 
 def msg_detail(msg: Message, event: Event):
@@ -113,37 +115,32 @@ def response_msg(resp: AgentResponse):
     return Message(msg_list)
 
 
+def _append_text(content: list[dict], text: str) -> None:
+    """
+    组装并合并 text 消息
+    """
+    if not text:
+        return
+    if content and content[-1]["type"] == "input_text":
+        content[-1]["text"] += text
+    else:
+        content.append({"type": "input_text", "text": text})
+
+
 def msg_request(msg: Message, context: str):
-    content: list[dict] = [{"type": "input_text", "text": context}]
+    content: list[dict] = []
+    _append_text(content, context)
     for seg in msg:
-        match seg.type:
-            case "image":
-                url = None
-                if url := seg.data.get("url"):
-                    pass
-                elif file := seg.data.get("file"):
-                    if file.startswith(("http://", "https://")):
-                        url = file
-                    elif file.startswith("file://"):
-                        # TODO
-                        pass
-                if url:
-                    content.append(
-                        {
-                            "type": "input_image",
-                            "image_url": url,
-                            "detail": "auto",
-                        }
-                    )
-            case "text":
-                content.append({"type": "input_text", "text": str(seg)})
-            case _:
-                content.append(
-                    {
-                        "type": "input_text",
-                        "text": seg.to_rich_text(0),
-                    }
-                )
+        if seg.type == "image" and (url := _image_url(seg)):
+            content.append(
+                {
+                    "type": "input_image",
+                    "image_url": url,
+                    "detail": "auto",
+                }
+            )
+        else:
+            _append_text(content, _segment_to_text(seg))
     return [{"role": "user", "content": content}]
 
 
@@ -199,7 +196,6 @@ async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
     )
     req = msg_request(msg, context)
     if isinstance(event, MessageEvent) and event.reply:
-        reply_sender = _reply_sender(event)
         if reply_sender := _reply_sender(event):
             reply_prefix = f"下面是引用的回复（{reply_sender}）："
         else:
