@@ -145,56 +145,21 @@ def msg_request(msg: Message, context: str):
     return [{"role": "user", "content": content}]
 
 
-@context_matcher.handle()
-async def record_reply_message(event: Event, msg: Annotated[Message, EventMessage()]):
+async def handle_message(
+    event: Event,
+    msg: Message,
+    *,
+    should_reply: bool,
+) -> Message | None:
     detail = msg_detail(msg, event)
-    if randint(1, 1000) == 1:
-        context = await assemble_context(detail)  # 延迟组装 context, 降低组装消耗
-        await ctx_mgr.add_context(
-            detail.conversation_id,
-            detail,
-        )
-        req = msg_request(msg, context)
-        if isinstance(event, MessageEvent) and event.reply:
-            if reply_sender := _reply_sender(event):
-                reply_prefix = f"下面是引用的回复（{reply_sender}）："
-            else:
-                reply_prefix = "下面是引用的回复："
-            req += msg_request(event.reply.message, reply_prefix)
-        if not req:
-            return
-        resp = await chat(req)
-        resp_msg = response_msg(resp)
-        if not resp_msg:
-            return
-        await ctx_mgr.add_context(
-            detail.conversation_id,
-            MessageDetail(
-                detail.conversation_id,
-                "0",
-                "[bot]",
-                message_to_text(resp_msg),
-                time(),
-                resp_msg.to_rich_text(0),
-            ),
-        )
-        await context_matcher.send(resp_msg)
-        await context_matcher.finish()
+    # 延迟组装 context，且需在写入当前消息前拉取历史
+    if should_reply:
+        context = await assemble_context(detail)
     else:
-        await ctx_mgr.add_context(
-            detail.conversation_id,
-            detail,
-        )
-
-
-@tome_matcher.handle()
-async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
-    detail = msg_detail(msg, event)
-    context = await assemble_context(detail)
-    await ctx_mgr.add_context(
-        detail.conversation_id,
-        detail,
-    )
+        context = ""
+    if not should_reply:
+        return
+    # 和 Agent 交互
     req = msg_request(msg, context)
     if isinstance(event, MessageEvent) and event.reply:
         if reply_sender := _reply_sender(event):
@@ -202,12 +167,11 @@ async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
         else:
             reply_prefix = "下面是引用的回复："
         req += msg_request(event.reply.message, reply_prefix)
-    if not req:
-        return
     resp = await chat(req)
     resp_msg = response_msg(resp)
     if not resp_msg:
         return
+
     await ctx_mgr.add_context(
         detail.conversation_id,
         MessageDetail(
@@ -219,5 +183,17 @@ async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
             resp_msg.to_rich_text(0),
         ),
     )
-    await tome_matcher.send(resp_msg)
-    await tome_matcher.finish()
+    return resp_msg
+
+
+@context_matcher.handle()
+async def record_reply_message(event: Event, msg: Annotated[Message, EventMessage()]):
+    should_reply = randint(1, 1000) == 1
+    if resp_msg := await handle_message(event, msg, should_reply=should_reply):
+        await context_matcher.finish(resp_msg)
+
+
+@tome_matcher.handle()
+async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
+    if resp_msg := await handle_message(event, msg, should_reply=True):
+        await tome_matcher.finish(resp_msg)
