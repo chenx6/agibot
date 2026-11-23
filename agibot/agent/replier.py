@@ -2,7 +2,7 @@ from datetime import datetime
 from os import environ
 
 from agents.decorators import tool
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, OpenAIError
 
 from ..logger import get_logger
 
@@ -14,7 +14,8 @@ if REPLIER_BASE_URL and MODEL and REPLIER_API_KEY:
     replier_client = AsyncOpenAI(
         api_key=REPLIER_API_KEY,
         base_url=REPLIER_BASE_URL,
-        timeout=60.0,
+        timeout=15.0,
+        max_retries=0,
     )
     logger.warning("replier is enabled")
 else:
@@ -23,7 +24,7 @@ else:
     replier_client = None
 
 
-@tool(timeout=90)
+@tool(timeout=20)
 async def generate_qq_reply(
     persona_name: str,
     persona_description: str,
@@ -51,7 +52,7 @@ async def generate_qq_reply(
         一条自然、简短的 QQ 群聊回复。
     """
     if not replier_client:
-        return ""
+        return llm_draft
     history_text = "\n".join(history[-20:])
 
     current_time = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
@@ -96,25 +97,29 @@ async def generate_qq_reply(
 现在，你说：
 """
 
-    response = await replier_client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": system_prompt,
+    try:
+        response = await replier_client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt,
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt,
+                },
+            ],
+            temperature=0.7,
+            top_p=0.95,
+            max_tokens=128,
+            extra_body={
+                "repetition_penalty": 1.15,
+                "chat_template_kwargs": {"enable_thinking": False},
             },
-            {
-                "role": "user",
-                "content": user_prompt,
-            },
-        ],
-        temperature=0.7,
-        top_p=0.95,
-        max_tokens=128,
-        extra_body={
-            "repetition_penalty": 1.15,
-            "chat_template_kwargs": {"enable_thinking": False},
-        },
-    )
+        )
+    except (OpenAIError, TimeoutError) as e:
+        logger.warning("replier request failed, fallback to draft: %s", e)
+        return llm_draft
 
-    return (response.choices[0].message.content or "").strip()
+    return (response.choices[0].message.content or "").strip() or llm_draft
