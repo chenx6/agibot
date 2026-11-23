@@ -92,8 +92,8 @@ def msg_detail(msg: Message, event: Event):
     )
 
 
-def assemble_context(detail: MessageDetail):
-    last_ctx = ctx_mgr.get_nearest_context(detail.conversation_id, 20)
+async def assemble_context(detail: MessageDetail):
+    last_ctx = await ctx_mgr.get_nearest_context(detail.conversation_id, 20)
     return (
         f"当前会话：{detail.conversation_id}\n"
         f"这是前面的消息记录：\n" + "\n".join(last_ctx) + "\n"
@@ -148,7 +148,7 @@ def msg_request(msg: Message, context: str):
 async def record_reply_message(event: Event, msg: Annotated[Message, EventMessage()]):
     detail = msg_detail(msg, event)
     if randint(1, 1000) == 1:
-        context = assemble_context(detail)  # 延迟组装 context, 降低组装消耗
+        context = await assemble_context(detail)  # 延迟组装 context, 降低组装消耗
         await ctx_mgr.add_context(
             detail.conversation_id,
             detail,
@@ -189,7 +189,7 @@ async def record_reply_message(event: Event, msg: Annotated[Message, EventMessag
 @tome_matcher.handle()
 async def reply(event: Event, msg: Annotated[Message, EventMessage()]):
     detail = msg_detail(msg, event)
-    context = assemble_context(detail)
+    context = await assemble_context(detail)
     await ctx_mgr.add_context(
         detail.conversation_id,
         detail,
