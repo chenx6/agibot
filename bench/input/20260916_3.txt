@@ -1,6 +1,6 @@
-user_a=何时叛逃
-user_b=鸭哥最近那个微信的问题，藤子是不是压力很大
-user_c=豆包怎么说
-user_f=@user_g 等5
-user_d=躺在家里快一周了，刚好腿受伤了休息一下
-user_e=@user_b 啥问题，微信最近问题有点多吧
+{"conversation_id": "20260916_3.txt", "user_id": "user_a", "nickname": "user_a", "message": "何时叛逃", "timestamp": 1789531200.0, "raw": "何时叛逃", "reply_to": null}
+{"conversation_id": "20260916_3.txt", "user_id": "user_b", "nickname": "user_b", "message": "鸭哥最近那个微信的问题，藤子是不是压力很大", "timestamp": 1789531215.0, "raw": "鸭哥最近那个微信的问题，藤子是不是压力很大", "reply_to": null}
+{"conversation_id": "20260916_3.txt", "user_id": "user_c", "nickname": "user_c", "message": "豆包怎么说", "timestamp": 1789531230.0, "raw": "豆包怎么说", "reply_to": null}
+{"conversation_id": "20260916_3.txt", "user_id": "user_f", "nickname": "user_f", "message": "@user_g 等5", "timestamp": 1789531245.0, "raw": "@user_g 等5", "reply_to": null}
+{"conversation_id": "20260916_3.txt", "user_id": "user_d", "nickname": "user_d", "message": "躺在家里快一周了，刚好腿受伤了休息一下", "timestamp": 1789531260.0, "raw": "躺在家里快一周了，刚好腿受伤了休息一下", "reply_to": null}
+{"conversation_id": "20260916_3.txt", "user_id": "user_e", "nickname": "user_e", "message": "@user_b 啥问题，微信最近问题有点多吧", "timestamp": 1789531275.0, "raw": "@user_b 啥问题，微信最近问题有点多吧", "reply_to": null}

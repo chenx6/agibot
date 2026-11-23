@@ -1,7 +1,7 @@
-user_a=群友简历课不上，跑去给野hr付费
-user_b=@user_d 资讯
-user_b=咨询
-user_c=文哥要咨询？
-user_b=没 我看票圈猎头发的
-user_a=文哥想跑了
-user_b=我咨询肯定折磨麻佬去了啊
+{"conversation_id": "20260916_2.txt", "user_id": "user_a", "nickname": "user_a", "message": "群友简历课不上，跑去给野hr付费", "timestamp": 1789527600.0, "raw": "群友简历课不上，跑去给野hr付费", "reply_to": null}
+{"conversation_id": "20260916_2.txt", "user_id": "user_b", "nickname": "user_b", "message": "@user_d 资讯", "timestamp": 1789527615.0, "raw": "@user_d 资讯", "reply_to": null}
+{"conversation_id": "20260916_2.txt", "user_id": "user_b", "nickname": "user_b", "message": "咨询", "timestamp": 1789527630.0, "raw": "咨询", "reply_to": null}
+{"conversation_id": "20260916_2.txt", "user_id": "user_c", "nickname": "user_c", "message": "文哥要咨询？", "timestamp": 1789527645.0, "raw": "文哥要咨询？", "reply_to": null}
+{"conversation_id": "20260916_2.txt", "user_id": "user_b", "nickname": "user_b", "message": "没 我看票圈猎头发的", "timestamp": 1789527660.0, "raw": "没 我看票圈猎头发的", "reply_to": null}
+{"conversation_id": "20260916_2.txt", "user_id": "user_a", "nickname": "user_a", "message": "文哥想跑了", "timestamp": 1789527675.0, "raw": "文哥想跑了", "reply_to": null}
+{"conversation_id": "20260916_2.txt", "user_id": "user_b", "nickname": "user_b", "message": "我咨询肯定折磨麻佬去了啊", "timestamp": 1789527690.0, "raw": "我咨询肯定折磨麻佬去了啊", "reply_to": null}
