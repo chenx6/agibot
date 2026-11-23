@@ -8,7 +8,7 @@ from nonebot.adapters.onebot.v11 import Message, MessageEvent, MessageSegment
 from nonebot.params import EventMessage
 from nonebot.rule import to_me
 
-from ..agent.agent import AgentResponse, chat, ctx_mgr
+from ..agent.agent import AgentResponse, chat, ctx_mgr, mem_mgr
 from ..agent.model import MessageDetail
 from ..util import conversation_id, readable_time
 
@@ -94,13 +94,20 @@ def msg_detail(msg: Message, event: Event):
 
 
 async def assemble_context(detail: MessageDetail):
+    parts = [f"当前会话：{detail.conversation_id}"]
+
+    if detail.conversation_id.startswith("group:") and (
+        group_mem := mem_mgr.get_memory("group", detail.conversation_id)
+    ):
+        parts.append(f"本群长期记忆：\n{group_mem}")
+
     last_ctx = await ctx_mgr.get_nearest_context(detail.conversation_id, 20)
-    return (
-        f"当前会话：{detail.conversation_id}\n"
-        f"这是前面的消息记录：\n" + "\n".join(last_ctx) + "\n"
+    parts.append("这是前面的消息记录：\n" + "\n".join(last_ctx))
+    parts.append(
         f"这是当前的消息：[{readable_time(detail.timestamp)}] "
         f"{detail.nickname or detail.user_id}({detail.user_id}): "
     )
+    return "\n".join(parts)
 
 
 def response_msg(resp: AgentResponse):
