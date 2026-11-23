@@ -2,10 +2,21 @@ from asyncio import Lock, to_thread
 from json import dumps, load
 from os import fsync, replace
 from pathlib import Path
+from typing import Literal
 
 from ..logger import get_logger
 
 logger = get_logger()
+MemoryType = Literal["user", "group"]
+
+
+def _make_key(memory_type: MemoryType, target_id: str) -> str:
+    if memory_type not in ("user", "group"):
+        raise ValueError(f"invalid memory_type: {memory_type}")
+    clean_id = target_id.strip().removeprefix(f"{memory_type}:")
+    if not clean_id:
+        raise ValueError("target_id cannot be empty")
+    return f"{memory_type}:{clean_id}"
 
 
 class MemoryManager:
@@ -33,29 +44,35 @@ class MemoryManager:
             tmp_file.unlink(missing_ok=True)
             raise
 
-    def get_memory(self, user_id: str) -> str | None:
+    def get_memory(self, memory_type: MemoryType, target_id: str) -> str | None:
         """
-        获取指定用户的长期记忆画像
+        获取长期记忆
 
         Args:
-            user_id: 用户的 QQ 号（字符串格式）
+            memory_type: 记忆类型，"user" 表示用户画像，"group" 表示群组记忆
+            target_id: 对应 ID；user 为 QQ 号，group 为群号（可带或不带前缀）
 
         Returns:
-            该用户的长期记忆内容；若无记录则返回 None
+            对应的长期记忆内容；若无记录则返回 None
         """
-        logger.debug("Get memory: %s", user_id)
-        return self.memory.get(user_id)
+        key = _make_key(memory_type, target_id)
+        logger.debug("Get memory: %s", key)
+        return self.memory.get(key)
 
-    async def store_memory(self, user_id: str, memory: str) -> None:
+    async def store_memory(
+        self, memory_type: MemoryType, target_id: str, memory: str
+    ) -> None:
         """
-        存储指定用户的长期记忆画像（全量覆写该用户原有记忆，调用前应先用 get_memory 合并旧记录）
+        存储长期记忆（全量覆写该对象原有记忆，调用前应先用 get_memory 合并旧记录）
 
         Args:
-            user_id: 用户的 QQ 号（字符串格式）
-            memory: 整理后的完整用户长期记忆文本
+            memory_type: 记忆类型，"user" 表示用户画像，"group" 表示群组记忆
+            target_id: 对应 ID；user 为 QQ 号，group 为群号（可带或不带前缀）
+            memory: 整理后的完整长期记忆文本（群记忆建议精简控制在 300~500 字内）
         """
-        logger.debug("Store memory: %s %s", user_id, memory)
+        key = _make_key(memory_type, target_id)
+        logger.debug("Store memory: %s %s", key, memory)
         async with self.lock:
-            updated = {**self.memory, user_id: memory}
+            updated = {**self.memory, key: memory}
             await to_thread(self._atomic_write, dumps(updated, ensure_ascii=False))
-            self.memory[user_id] = memory
+            self.memory[key] = memory
