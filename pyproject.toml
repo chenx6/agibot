@@ -28,5 +28,5 @@ dev = [
 pythonpath = ["."]
 
 [[tool.uv.index]]
-url = "https://mirrors.bfsu.edu.cn/pypi/web/simple"
+url = "https://mirror.nju.edu.cn/pypi/web/simple"
 default = true
