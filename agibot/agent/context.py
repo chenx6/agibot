@@ -50,9 +50,7 @@ def jsonl_list_message(json_strs: list[str]) -> list[str]:
     将 JSON 转换成可读的形式
     """
     return [
-        msg
-        for js in json_strs
-        if js.strip() and (msg := json_message(js)) is not None
+        msg for js in json_strs if js.strip() and (msg := json_message(js)) is not None
     ]
 
 

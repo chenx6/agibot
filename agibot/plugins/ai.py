@@ -23,6 +23,7 @@ _SEG_PLACEHOLDERS = {
     "json": "[卡片消息]",
 }
 
+
 def _nickname(event: Event):
     if isinstance(event, MessageEvent):
         return event.sender.nickname

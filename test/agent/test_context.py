@@ -38,7 +38,9 @@ def test_sanitize_path_symlink_escape(tmp_path: Path):
 
 
 def _msg(conv_id: str, text: str, idx: int = 1) -> MessageDetail:
-    return MessageDetail(conv_id, f"100{idx}", f"u{idx}", text, 1700000000.0 + idx, text)
+    return MessageDetail(
+        conv_id, f"100{idx}", f"u{idx}", text, 1700000000.0 + idx, text
+    )
 
 
 @pytest.mark.asyncio
@@ -76,7 +78,10 @@ async def test_search_context_limits(tmp_path: Path):
     mgr = ContextManager(str(tmp_path))
     for i in range(1, 41):
         await mgr.add_context("group:many", _msg("group:many", f"hi {i}", i))
-    assert len((await mgr.search_context("group:many", "hi")).splitlines()) == SEARCH_MAX_MATCHES
+    assert (
+        len((await mgr.search_context("group:many", "hi")).splitlines())
+        == SEARCH_MAX_MATCHES
+    )
 
     for i in range(1, 25):
         await mgr.add_context("group:long", _msg("group:long", f"kw {'x' * 300}", i))
