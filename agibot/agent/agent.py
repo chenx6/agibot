@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from ..logger import get_logger
 from .context import ContextManager
+from .image_cache import ImageCacheManager
 from .memory import MemoryManager
 from .replier import generate_qq_reply
 from .tool.stock import stock
@@ -32,6 +33,7 @@ DEFAULT_PROMPT = """
 prompt_path = Path("data/prompt.md")
 ctx_mgr = ContextManager("data/context")
 mem_mgr = MemoryManager("data/memory.json")
+img_cache = ImageCacheManager()
 logger = get_logger()
 agent = Agent(
     name="Chatbot",
@@ -39,6 +41,7 @@ agent = Agent(
     tools=[
         function_tool(ctx_mgr.get_context),
         function_tool(ctx_mgr.search_context),
+        function_tool(img_cache.read_image),
         function_tool(mem_mgr.store_memory),
         function_tool(mem_mgr.get_memory),
         function_tool(stock),

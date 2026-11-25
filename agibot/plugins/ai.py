@@ -8,7 +8,7 @@ from nonebot.adapters.onebot.v11 import Message, MessageEvent, MessageSegment
 from nonebot.params import EventMessage
 from nonebot.rule import to_me
 
-from ..agent.agent import AgentResponse, chat, ctx_mgr, mem_mgr
+from ..agent.agent import AgentResponse, chat, ctx_mgr, img_cache, mem_mgr
 from ..agent.model import MessageDetail
 from ..util import conversation_id, readable_time
 
@@ -50,17 +50,6 @@ def _reply_to(event: Event) -> str | None:
     return text or who or None
 
 
-def _segment_to_text(seg: MessageSegment) -> str:
-    if seg.type == "text":
-        return str(seg.data.get("text", ""))
-    if seg.type == "at":
-        qq = seg.data.get("qq") or seg.data.get("user_id") or ""
-        return f"[@{qq}]" if qq else "[@]"
-    if seg.type == "reply":
-        return ""
-    return _SEG_PLACEHOLDERS.get(seg.type, f"[{seg.type}]")
-
-
 def _image_url(seg: MessageSegment) -> str | None:
     if url := seg.data.get("url"):
         return url
@@ -69,17 +58,65 @@ def _image_url(seg: MessageSegment) -> str | None:
     return None
 
 
-def message_to_text(msg: Message) -> str:
+def _image_size(seg: MessageSegment) -> int | None:
+    val = seg.data.get("file_size")
+    if not val:
+        return
+    try:
+        val = int(val)
+        return val if val > 0 else None
+    except (TypeError, ValueError):
+        return
+
+
+def _cache_images(msg: Message, conv_id: str) -> dict[str, str]:
+    image_ids: dict[str, str] = {}
+    for seg in msg:
+        if (
+            seg.type == "image"
+            and (url := _image_url(seg))
+            and (
+                img_id := img_cache.register(
+                    conv_id, url, declared_size=_image_size(seg)
+                )
+            )
+        ):
+            image_ids[url] = img_id
+    return image_ids
+
+
+def _segment_to_text(
+    seg: MessageSegment, image_ids: dict[str, str] | None = None
+) -> str:
+    if seg.type == "text":
+        return str(seg.data.get("text", ""))
+    if seg.type == "at":
+        qq = seg.data.get("qq") or seg.data.get("user_id") or ""
+        return f"[@{qq}]" if qq else "[@]"
+    if seg.type == "reply":
+        return ""
+    if (
+        seg.type == "image"
+        and image_ids
+        and (url := _image_url(seg))
+        and (img_id := image_ids.get(url))
+    ):
+        return f"[图片:id={img_id}]"
+    return _SEG_PLACEHOLDERS.get(seg.type, f"[{seg.type}]")
+
+
+def message_to_text(msg: Message, image_ids: dict[str, str] | None = None) -> str:
     """
     将 OneBot Message 转换为可读文本
     """
-    return "".join(_segment_to_text(seg) for seg in msg).strip()
+    return "".join(_segment_to_text(seg, image_ids) for seg in msg).strip()
 
 
 def msg_detail(msg: Message, event: Event):
-    text = message_to_text(msg)
-    user_id = event.get_user_id()
     conv_id = conversation_id(event)
+    image_ids = _cache_images(msg, conv_id)
+    text = message_to_text(msg, image_ids)
+    user_id = event.get_user_id()
     nickname = _nickname(event)
     timestamp = time()
     return MessageDetail(
@@ -183,13 +220,14 @@ async def handle_message(
     if not resp_msg:
         return
     # 记录并返回 bot 发言
+    resp_image_ids = _cache_images(resp_msg, detail.conversation_id)
     await ctx_mgr.add_context(
         detail.conversation_id,
         MessageDetail(
             detail.conversation_id,
             "0",
             "[bot]",
-            message_to_text(resp_msg),
+            message_to_text(resp_msg, resp_image_ids),
             time(),
             resp_msg.to_rich_text(0),
         ),
