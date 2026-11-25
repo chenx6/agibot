@@ -1,6 +1,6 @@
 # Stage 1: Export a version-independent locked dependency list so bumping
 # project.version in pyproject.toml does not invalidate the runtime venv cache.
-FROM docker.io/library/archlinux:base AS lock-exporter
+FROM m.daocloud.io/docker.io/library/archlinux:base AS lock-exporter
 
 RUN sed -i '1iServer = https://mirror.nju.edu.cn/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist \
     && pacman -Syu --noconfirm --needed uv \
@@ -13,7 +13,7 @@ RUN uv export --frozen --no-dev --no-emit-project --no-header -o /requirements.l
     && touch -d @0 /requirements.lock
 
 # Stage 2: Runtime image with cached virtualenv installation.
-FROM docker.io/library/archlinux:base AS runtime
+FROM m.daocloud.io/docker.io/library/archlinux:base AS runtime
 
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
