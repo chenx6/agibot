@@ -164,6 +164,10 @@ async def handle_message(
         context = await assemble_context(detail)
     else:
         context = ""
+    await ctx_mgr.add_context(
+        detail.conversation_id,
+        detail,
+    )
     if not should_reply:
         return
     # 和 Agent 交互
@@ -178,7 +182,7 @@ async def handle_message(
     resp_msg = response_msg(resp)
     if not resp_msg:
         return
-
+    # 记录并返回 bot 发言
     await ctx_mgr.add_context(
         detail.conversation_id,
         MessageDetail(
