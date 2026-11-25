@@ -24,7 +24,7 @@ else:
     replier_client = None
 
 
-@tool(timeout=20)
+@tool(timeout=20, is_enabled=replier_client is not None)
 async def generate_qq_reply(
     persona_name: str,
     persona_description: str,
