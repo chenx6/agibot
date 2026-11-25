@@ -1,24 +1,26 @@
-FROM docker.io/library/archlinux:base AS builder
-
-ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+# Stage 1: Export a version-independent locked dependency list so bumping
+# project.version in pyproject.toml does not invalidate the runtime venv cache.
+FROM docker.io/library/archlinux:base AS lock-exporter
 
 RUN sed -i '1iServer = https://mirror.nju.edu.cn/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist \
-    && pacman -Syu --noconfirm --needed python uv \
+    && pacman -Syu --noconfirm --needed uv \
     && pacman -Scc --noconfirm
 
 WORKDIR /app
-
-# Install locked production dependencies in a separate layer so source changes do
-# not invalidate the dependency cache.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv export --frozen --no-dev --no-emit-project --no-header -o /requirements.lock \
+    && chmod 0644 /requirements.lock \
+    && touch -d @0 /requirements.lock
 
+# Stage 2: Runtime image with cached virtualenv installation.
 FROM docker.io/library/archlinux:base AS runtime
 
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_DEFAULT_INDEX=https://mirror.nju.edu.cn/pypi/web/simple
 
 RUN sed -i '1iServer = https://mirror.nju.edu.cn/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist \
     && stdbuf -oL -eL pacman -Syu --noconfirm --needed \
@@ -26,11 +28,17 @@ RUN sed -i '1iServer = https://mirror.nju.edu.cn/archlinux/$repo/os/$arch' /etc/
         noto-fonts-cjk \
         python \
         ripgrep \
+        uv \
     && pacman -Scc --noconfirm
 
 WORKDIR /app
 
-COPY --from=builder /app/.venv /app/.venv
+COPY --from=lock-exporter /requirements.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv /app/.venv \
+    && uv pip sync --python /app/.venv/bin/python --require-hashes requirements.lock
+
+COPY pyproject.toml ./
 COPY agibot ./agibot
 COPY bot.py ./bot.py
 
